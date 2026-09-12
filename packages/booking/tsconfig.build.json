@@ -1,0 +1,39 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.spec.ts",
+    "src/**/*.int.spec.ts",
+    "src/**/__tests__/**",
+    "dist"
+  ],
+  "references": [
+    {
+      "path": "../shared/tsconfig.build.json"
+    },
+    {
+      "path": "../database/tsconfig.build.json"
+    },
+    {
+      "path": "../provider-sdk/tsconfig.build.json"
+    },
+    {
+      "path": "../queue/tsconfig.build.json"
+    },
+    {
+      "path": "../billing/tsconfig.build.json"
+    },
+    {
+      "path": "../config/tsconfig.build.json"
+    },
+    {
+      "path": "../notifications/tsconfig.build.json"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+# ---- Node / build output ----
+node_modules/
+dist/
+build/
+out/
+*.tsbuildinfo
+.next/
+coverage/
+.vitest/
+
+# ---- Runtime / local state ----
+*.log
+logs/
+data/
+artifacts/
+tmp/
+.tmp/
+run/
+
+# ---- Secrets (never commit) ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+!**/fixtures/**/*.key.pem
+
+# ---- Browser automation artifacts (may contain PII / provider HTML) ----
+traces/
+screenshots/
+snapshots/
+playwright-report/
+test-results/
+
+# ---- Editors / OS ----
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# ---- Tooling caches ----
+.eslintcache
+*.local.json

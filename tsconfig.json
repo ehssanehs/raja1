@@ -1,0 +1,83 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@raja/auth": [
+        "packages/auth/src/index.ts"
+      ],
+      "@raja/billing": [
+        "packages/billing/src/index.ts"
+      ],
+      "@raja/booking": [
+        "packages/booking/src/index.ts"
+      ],
+      "@raja/config": [
+        "packages/config/src/index.ts"
+      ],
+      "@raja/crypto": [
+        "packages/crypto/src/index.ts"
+      ],
+      "@raja/database": [
+        "packages/database/src/index.ts"
+      ],
+      "@raja/logging": [
+        "packages/logging/src/index.ts"
+      ],
+      "@raja/notifications": [
+        "packages/notifications/src/index.ts"
+      ],
+      "@raja/provider-sdk": [
+        "packages/provider-sdk/src/index.ts"
+      ],
+      "@raja/queue": [
+        "packages/queue/src/index.ts"
+      ],
+      "@raja/shared": [
+        "packages/shared/src/index.ts"
+      ],
+      "@raja/testing": [
+        "packages/testing/src/index.ts"
+      ],
+      "@raja/api": [
+        "apps/api/src/index.ts"
+      ],
+      "@raja/provider-simulator": [
+        "apps/provider-simulator/src/index.ts"
+      ],
+      "@raja/scheduler": [
+        "apps/scheduler/src/index.ts"
+      ],
+      "@raja/telegram-bot": [
+        "apps/telegram-bot/src/index.ts"
+      ],
+      "@raja/web": [
+        "apps/web/src/index.ts"
+      ],
+      "@raja/worker": [
+        "apps/worker/src/index.ts"
+      ]
+    },
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "ES2022"
+    ]
+  },
+  "include": [
+    "packages/*/src/**/*.ts",
+    "packages/*/test/**/*.ts",
+    "apps/*/src/**/*.ts",
+    "apps/*/test/**/*.ts"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/dist",
+    "apps/web/**",
+    "**/*.spec.ts"
+  ]
+}

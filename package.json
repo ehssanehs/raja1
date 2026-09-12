@@ -1,0 +1,45 @@
+{
+  "name": "raja1",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Raja1 - multi-tenant SaaS platform for train-ticket availability monitoring and assisted reservation workflows",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "typecheck:fast": "tsc -p tsconfig.base.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md,yml,yaml}\"",
+    "migrate:up": "tsx packages/database/src/cli/migrate.ts up",
+    "migrate:down": "tsx packages/database/src/cli/migrate.ts down",
+    "migrate:status": "tsx packages/database/src/cli/migrate.ts status",
+    "seed": "tsx packages/database/src/cli/seed.ts",
+    "docker:dev": "docker compose -f docker/docker-compose.yml up --build",
+    "docker:prod": "docker compose -f docker/docker-compose.production.yml up --build -d",
+    "build:watch": "tsc -b tsconfig.build.json --watch",
+    "clean": "node -e \"require('fs').rmSync('node_modules/.cache',{recursive:true,force:true})\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^9.14.0",
+    "prettier": "^3.3.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.13.0",
+    "vitest": "^2.1.8"
+  }
+}
