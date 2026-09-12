@@ -294,6 +294,10 @@ export const NOTIFICATION_EVENTS = [
   'release_window_started',
   'maintenance_notice',
   'support_reply',
+  'proxy_pool_degraded',
+  'proxy_pool_exhausted',
+  'proxy_added',
+  'proxy_removed',
 ] as const;
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number];
 
@@ -332,6 +336,10 @@ export const NOTIFICATION_EVENT_META: Record<NotificationEvent, { category: Noti
   release_window_started: { category: 'availability' },
   maintenance_notice: { category: 'system' },
   support_reply: { category: 'support' },
+  proxy_pool_degraded: { category: 'system' },
+  proxy_pool_exhausted: { category: 'system', mandatory: true },
+  proxy_added: { category: 'system' },
+  proxy_removed: { category: 'system' },
 };
 
 // ---------------------------------------------------------------------------
@@ -349,6 +357,50 @@ export type ProxyProtocol = (typeof PROXY_PROTOCOLS)[number];
 
 export const PROXY_STRATEGIES = ['DIRECT', 'STATIC', 'ROUND_ROBIN', 'WEIGHTED', 'HEALTH_BASED', 'REGION_BASED'] as const;
 export type ProxyStrategy = (typeof PROXY_STRATEGIES)[number];
+
+/**
+ * Operational state of an egress proxy.
+ *
+ * `QUARANTINED` is a *respectful* state: the provider signalled a limit (429 / block page /
+ * repeated CAPTCHA) on that egress, so the pool stops using it for that window instead of
+ * switching traffic to another IP to keep requesting. Rotation never serves evasion (ADR-0008).
+ */
+export const PROXY_STATUSES = ['ACTIVE', 'QUARANTINED', 'DEAD'] as const;
+export type ProxyStatus = (typeof PROXY_STATUSES)[number];
+
+/** Where a health sample came from: an active connectivity probe or real provider traffic. */
+export const PROXY_HEALTH_SOURCES = ['PROBE', 'TRAFFIC'] as const;
+export type ProxyHealthSource = (typeof PROXY_HEALTH_SOURCES)[number];
+
+/** Audit trail of administrative and automatic pool decisions (who/what/why, no secrets). */
+export const PROXY_EVENT_TYPES = [
+  'CREATED',
+  'UPDATED',
+  'REMOVED',
+  'ENABLED',
+  'DISABLED',
+  'PROBE_OK',
+  'PROBE_FAILED',
+  'QUARANTINED',
+  'QUARANTINE_RELEASED',
+  'MARKED_DEAD',
+  'RECOVERED',
+  'LEASE_ACQUIRED',
+  'LEASE_RELEASED',
+  'ROTATED',
+  'BUDGET_TIGHTENED',
+] as const;
+export type ProxyEventType = (typeof PROXY_EVENT_TYPES)[number];
+
+/**
+ * Egress mode (fail-closed default `OFF`):
+ *  - `OFF`      — the proxy pool is inert; all provider traffic uses the platform's own egress.
+ *  - `OPTIONAL` — provider traffic uses a healthy proxy when one is available, direct otherwise.
+ *  - `REQUIRED` — provider traffic is *refused* unless a healthy proxy is available (deployments
+ *                 whose platform egress must never be exposed to the provider).
+ */
+export const EGRESS_MODES = ['OFF', 'OPTIONAL', 'REQUIRED'] as const;
+export type EgressMode = (typeof EGRESS_MODES)[number];
 
 /**
  * Account assignment strategies.
@@ -422,4 +474,30 @@ export const LIMITS = {
   DEFAULT_APPROVAL_WINDOW_MINUTES: 10,
   /** Human verification window (spec § 21). */
   DEFAULT_VERIFICATION_WINDOW_MINUTES: 15,
+} as const;
+
+/**
+ * Egress proxy pool bounds (admin-managed, fail-closed).
+ *
+ * The pool exists to *route* outbound provider traffic and to *respect* provider signals —
+ * never to evade them (ADR-0008). The bounds are deliberately conservative so a misconfigured
+ * pool cannot turn into a request flood against the provider.
+ */
+export const PROXY_SETTINGS_LIMITS = {
+  /** Admin-defined rotation interval per proxy; nothing rotates faster than this. */
+  MIN_ROTATION_SECONDS: 300,
+  MAX_ROTATION_SECONDS: 86_400,
+  DEFAULT_ROTATION_SECONDS: 3_600,
+  /** Rest window after which a quarantined proxy may be probed again. */
+  MIN_REST_SECONDS: 60,
+  MAX_REST_SECONDS: 86_400,
+  DEFAULT_REST_SECONDS: 900,
+  /** Per-proxy request budget (requests/minute) — scheduler tokens are per proxy, not global. */
+  MIN_REQUESTS_PER_MINUTE: 1,
+  MAX_REQUESTS_PER_MINUTE: 60,
+  DEFAULT_REQUESTS_PER_MINUTE: 10,
+  /** Consecutive failed probes before a proxy is marked DEAD. */
+  DEAD_AFTER_CONSECUTIVE_FAILURES: 5,
+  /** Default quarantine multiplier growth per repeat offence (backoff, capped at MAX_REST). */
+  QUARANTINE_MULTIPLIER: 2,
 } as const;

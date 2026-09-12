@@ -101,6 +101,7 @@ packages/
   database/            Pool, migrations (forward-only), repositories, tenancy guard
   auth/                JWT access/refresh with rotation, RBAC, sessions
   provider-sdk/        Provider interface, capability flags, registry, contract tests
+  proxy/               Egress proxy pool: admin CRUD, per-worker leases, scheduled rotation, rest/quarantine, probing
   queue/               Queue names, job contracts, idempotency, Redis locks
   billing/             Wallet ledger, subscriptions, entitlements, quotas, payments
   notifications/       Channel abstraction + dedup + preferences
@@ -152,6 +153,7 @@ npm test               # 900+ unit + integration tests, no network, no provider 
 | [`docs/provider-adapter.md`](docs/provider-adapter.md) | Provider interface, capability flags, compliance gate, adapter layout |
 | [`docs/provider-research.md`](docs/provider-research.md) | Research gate: APIs, auth, sessions, booking flow, rate limits, restrictions |
 | [`docs/scheduler.md`](docs/scheduler.md) | Monitoring strategies, jitter/backoff, fair scheduling, rate limiter, breaker |
+| [`docs/proxy-pool.md`](docs/proxy-pool.md) | Admin-managed egress proxy pool: leases, rotation schedules, rest windows, probing, admin API |
 | [`docs/high-demand-mode.md`](docs/high-demand-mode.md) | Release windows, warm-up, burst validation, capacity protection, waiting room |
 | [`docs/billing.md`](docs/billing.md) | Entitlements, pricing, payment abstraction, invoices, refunds, dry-run |
 | [`docs/wallet.md`](docs/wallet.md) | Append-only ledger, idempotency, credits, reconciliation |
@@ -177,7 +179,10 @@ Automated interaction with ticketing providers is **legally and contractually bo
 2. Raja1 **never** implements CAPTCHA solving or anti-bot evasion. Human verification pauses the
    job and requests a real human.
 3. Raja1 **never** rotates provider accounts or proxies to evade restrictions, quotas, bans, or
-   geographic controls. Rate limits are honoured globally, per account, per proxy, and per user.
+   geographic controls. The optional egress proxy pool (`docs/proxy-pool.md`) is *routing
+   infrastructure that respects provider signals*: a restricted egress IP rests (quarantine with
+   growing windows and tightened budgets) — traffic does not continue from a different IP.
+   Rate limits are honoured globally, per account, per proxy, and per user.
 4. Users must own the provider account they connect. Account linking uses provider-side
    verification, not credentials harvested by us.
 5. Provider traffic is *cooperative*: the scheduler is designed to reduce load (jitter, backoff,

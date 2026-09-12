@@ -32,7 +32,8 @@
     "@raja/queue": "*",
     "@raja/billing": "*",
     "@raja/notifications": "*",
-    "@raja/booking": "*"
+    "@raja/booking": "*",
+    "@raja/proxy": "*"
   },
   "devDependencies": {
     "playwright": "^1.48.0"

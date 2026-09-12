@@ -46,6 +46,9 @@
     },
     {
       "path": "../../packages/booking/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/proxy/tsconfig.build.json"
     }
   ]
 }
