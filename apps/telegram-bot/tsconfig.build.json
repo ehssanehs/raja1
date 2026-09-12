@@ -1,0 +1,51 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.spec.ts",
+    "src/**/*.int.spec.ts",
+    "src/**/__tests__/**",
+    "dist"
+  ],
+  "references": [
+    {
+      "path": "../../packages/shared/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/config/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/logging/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/crypto/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/database/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/auth/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/provider-sdk/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/queue/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/billing/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/notifications/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/booking/tsconfig.build.json"
+    }
+  ]
+}

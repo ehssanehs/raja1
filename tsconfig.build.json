@@ -1,0 +1,56 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/auth/tsconfig.build.json"
+    },
+    {
+      "path": "packages/billing/tsconfig.build.json"
+    },
+    {
+      "path": "packages/booking/tsconfig.build.json"
+    },
+    {
+      "path": "packages/config/tsconfig.build.json"
+    },
+    {
+      "path": "packages/crypto/tsconfig.build.json"
+    },
+    {
+      "path": "packages/database/tsconfig.build.json"
+    },
+    {
+      "path": "packages/logging/tsconfig.build.json"
+    },
+    {
+      "path": "packages/notifications/tsconfig.build.json"
+    },
+    {
+      "path": "packages/provider-sdk/tsconfig.build.json"
+    },
+    {
+      "path": "packages/queue/tsconfig.build.json"
+    },
+    {
+      "path": "packages/shared/tsconfig.build.json"
+    },
+    {
+      "path": "packages/testing/tsconfig.build.json"
+    },
+    {
+      "path": "apps/api/tsconfig.build.json"
+    },
+    {
+      "path": "apps/provider-simulator/tsconfig.build.json"
+    },
+    {
+      "path": "apps/scheduler/tsconfig.build.json"
+    },
+    {
+      "path": "apps/telegram-bot/tsconfig.build.json"
+    },
+    {
+      "path": "apps/worker/tsconfig.build.json"
+    }
+  ]
+}
