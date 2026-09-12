@@ -60,7 +60,7 @@ async function createBookingRequest(tenantId: string, userId: string): Promise<s
 beforeAll(async () => {
   db = await PGliteClient.create();
   const result = await migrateUp(db, { skipLock: true, appliedBy: 'integration-test' });
-  expect(result.applied).toHaveLength(4);
+  expect(result.applied).toHaveLength(MIGRATIONS.length);
   await createTenantFixtures();
 }, 120_000);
 
@@ -73,18 +73,15 @@ describe('migrations', () => {
     const records = await db.query<{ name: string; checksum: string; applied_by: string }>(
       'SELECT name, checksum, applied_by FROM schema_migrations ORDER BY name',
     );
-    expect(records.map((row) => row.name)).toEqual([
-      '0001_init',
-      '0002_hardening',
-      '0003_seed',
-      '0004_tenant_integrity',
-    ]);
+    // Derived from the repository's own manifest, so adding a migration cannot silently skip a
+    // deployment — the runner and the expectation move together.
+    expect(records.map((row) => row.name)).toEqual(MIGRATIONS.map((migration) => migration.name));
     expect(records.every((row) => row.checksum.length === 64)).toBe(true);
     expect(records.every((row) => row.applied_by === 'integration-test')).toBe(true);
 
     const second = await migrateUp(db, { skipLock: true });
     expect(second.applied).toEqual([]);
-    expect(second.skipped).toHaveLength(4);
+    expect(second.skipped).toHaveLength(MIGRATIONS.length);
   });
 
   it('refuses to continue when an applied migration drifted from the repository', async () => {

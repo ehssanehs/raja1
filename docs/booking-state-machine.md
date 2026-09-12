@@ -100,6 +100,17 @@ Guards are evaluated in order; the first failing guard rejects the transition wi
 | `* → EXPIRED` | `deadline` | state ∈ {`SCHEDULED`, `QUEUED`, `SEARCHING`, `WAITING`} | stop monitors; notify `booking_expired` |
 | `* → CANCELLED` | `cancel` | actor has permission (owner/admin); not in `BOOKED` | stop monitors; release charges; audit; notify (if not user-initiated) |
 
+### Notes on the wildcard rows
+
+* `* → CANCELLED` is materialised in `packages/booking/src/state-machine.ts` for **every non-terminal
+  state** (a user may cancel a request a second after creating it, or while the provider form is
+  open). Terminal states have no outgoing row, so nothing can be cancelled twice.
+* `AWAITING_USER_APPROVAL → FAILED` has two triggers (`declined` and `holdExpired`). Targets may
+  repeat per state, but the `(from, trigger, to)` triple is unique — asserted by
+  `state-machine.property.spec.ts`. `sideEffectsFor()` merges the effects of both rows.
+* `booking_requests.canceled_at` / `cancel_reason` are written by the same statement as the status
+  change, so a `CANCELLED` row can never exist without its bookkeeping.
+
 **Invariants checked after every transition** (property-tested in
 `packages/booking/src/__tests__/state-machine.property.spec.ts`):
 
