@@ -210,6 +210,48 @@ export async function checkMigrationChecksums(db: DbClient): Promise<CheckResult
   };
 }
 
+/**
+ * 10. Egress proxy pool state is coherent (docs/proxy-pool.md).
+ * A resting or dead proxy must serve nobody: its lease must be freed the moment it leaves
+ * ACTIVE service, and budget/rotation settings must stay inside the platform bounds.
+ */
+export async function checkProxyPoolConsistency(db: DbClient): Promise<CheckResult> {
+  const restingWithLease = await scalar(
+    db,
+    `SELECT count(*) AS value FROM proxies
+      WHERE assigned_worker_id IS NOT NULL
+        AND (status = 'DEAD'
+             OR status = 'QUARANTINED'
+             OR (quarantined_until IS NOT NULL AND quarantined_until > now()))`,
+  );
+  const badBudget = await scalar(
+    db,
+    'SELECT count(*) AS value FROM proxies WHERE rate_budget_multiplier_pct < 12 OR rate_budget_multiplier_pct > 100',
+  );
+  const badRotation = await scalar(
+    db,
+    'SELECT count(*) AS value FROM proxies WHERE rotation_seconds < 300 OR rotation_seconds > 86400',
+  );
+  const negativeCounters = await scalar(
+    db,
+    'SELECT count(*) AS value FROM proxies WHERE success_count < 0 OR failure_count < 0 OR consecutive_failures < 0',
+  );
+  const ok = restingWithLease === 0 && badBudget === 0 && badRotation === 0 && negativeCounters === 0;
+  const problems: string[] = [];
+  if (restingWithLease > 0) problems.push(`${restingWithLease} resting/dead proxy(ies) still hold a worker lease`);
+  if (badBudget > 0) problems.push(`${badBudget} out-of-bounds budget multiplier(s)`);
+  if (badRotation > 0) problems.push(`${badRotation} out-of-bounds rotation window(s)`);
+  if (negativeCounters > 0) problems.push(`${negativeCounters} negative counter value(s)`);
+  return {
+    name: 'proxy_pool_consistency',
+    ok,
+    severity: 'WARNING',
+    detail: ok
+      ? 'proxy pool coherent: no resting/dead proxy holds a lease, settings in bounds'
+      : problems.join(', '),
+  };
+}
+
 export const DEFAULT_CHECKS = [
   checkAuditChain,
   checkWalletBalances,
@@ -220,6 +262,7 @@ export const DEFAULT_CHECKS = [
   checkIdempotencyScope,
   checkBookingStateMachine,
   checkMigrationChecksums,
+  checkProxyPoolConsistency,
 ] as const;
 
 export async function runIntegrityChecks(

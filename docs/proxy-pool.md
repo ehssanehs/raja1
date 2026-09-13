@@ -84,6 +84,16 @@ per-proxy event (audit) viewer. The page embeds no data and no token: it prompts
 `ADMIN_API_TOKEN`, stores it client-side and calls the guarded endpoints with relative URLs.
 Auto-refreshes every 10 s.
 
+## 5.2 Egress contract with adapters
+
+Workers lease an egress before making a provider call and pass its id via
+`ProviderCallContext.egressProxyId` (`@raja/provider-sdk`). Adapters bind the whole call to
+that egress and report outcomes through the pool; they never switch egress on restriction
+signals — the pool decides rest/recovery. Health endpoints: `GET /health/live` and
+`GET /health/ready` (unauthenticated, no data). Admin auth failures are rate-limited
+(20/min per source IP → 429). The nightly integrity suite includes
+`proxy_pool_consistency` (no lease on resting/dead proxies, settings in bounds).
+
 ## 6. Environment
 
 | Variable | Default | Meaning |

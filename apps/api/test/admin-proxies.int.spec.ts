@@ -31,6 +31,25 @@ describe('admin proxy api', () => {
     expect(response.status).toBe(401);
   });
 
+  it('exposes unauthenticated health endpoints with no data', async () => {
+    const live = await fetch(`${base.replace('/api/v1', '')}/health/live`);
+    expect(live.status).toBe(200);
+    const ready = (await (await fetch(`${base.replace('/api/v1', '')}/health/ready`)).json()) as { ok: boolean; checks: { database: boolean } };
+    expect(ready.ok).toBe(true);
+    expect(ready.checks.database).toBe(true);
+  });
+
+  it('brakes brute-force auth attempts with 429 after the failure budget', async () => {
+    // The guard allows 20 failures/minute per ip; the earlier 401 above consumed one.
+    let lastStatus = 0;
+    for (let i = 0; i < 25; i += 1) {
+      const response = await fetch(`${base}/admin/proxies`, { headers: { authorization: 'Bearer wrong-token' } });
+      lastStatus = response.status;
+      if (lastStatus === 429) break;
+    }
+    expect(lastStatus).toBe(429);
+  });
+
   it('creates, lists, updates and removes a proxy', async () => {
     const created = await fetch(`${base}/admin/proxies`, {
       method: 'POST',

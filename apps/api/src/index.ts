@@ -73,13 +73,35 @@ export async function startAdminApi(options: AdminApiOptions = {}): Promise<{ se
   const url = `http://${options.host ?? '0.0.0.0'}:${options.port ?? config.http.apiPort}`;
 
   // ----- auth guard (bearer token; RBAC integration lands with the API milestone) -----
+  // Plus a small fixed-window rate limit on failed auth attempts (brute-force brake).
+  const authFailures = new Map<string, { windowStart: number; count: number }>();
+  const AUTH_FAIL_LIMIT = 20;
+  const AUTH_WINDOW_MS = 60_000;
+
   app.addHook('onRequest', async (request, reply) => {
     if (!request.url.startsWith(config.http.apiBasePath)) return;
     const header = request.headers['authorization'];
     if (header !== `Bearer ${adminToken}`) {
-      const error = unauthenticated('admin token required');
-      await reply.code(error.statusCode).send(error.toPublicJson());
+      const ip = request.ip;
+      const now = Date.now();
+      const entry = authFailures.get(ip);
+      if (!entry || now - entry.windowStart > AUTH_WINDOW_MS) {
+        authFailures.set(ip, { windowStart: now, count: 1 });
+      } else if ((entry.count += 1) > AUTH_FAIL_LIMIT) {
+        const error = new AppError('RATE_LIMITED', 'too many failed admin auth attempts');
+        await reply.code(error.statusCode).send(error.toPublicJson());
+        return;
+      }
+      const failure = unauthenticated('admin token required');
+      await reply.code(failure.statusCode).send(failure.toPublicJson());
     }
+  });
+
+  // ----- health (operability; unauthenticated on purpose, exposes no data) -----
+  app.get('/health/live', async () => ({ ok: true }));
+  app.get('/health/ready', async () => {
+    const ready = await db.ping();
+    return { ok: ready, checks: { database: ready } };
   });
 
   // ----- error mapping -----
@@ -171,6 +193,14 @@ export async function startAdminApi(options: AdminApiOptions = {}): Promise<{ se
     return next;
   });
 
+  const limiterSweep = setInterval(() => {
+    const now = Date.now();
+    for (const [ip, entry] of authFailures) {
+      if (now - entry.windowStart > AUTH_WINDOW_MS) authFailures.delete(ip);
+    }
+  }, AUTH_WINDOW_MS);
+  limiterSweep.unref?.();
+
   await app.listen({ port: options.port ?? config.http.apiPort, host: options.host ?? '0.0.0.0' });
   const address = app.server.address();
   const boundPort = typeof address === 'object' && address !== null ? address.port : config.http.apiPort;
@@ -181,6 +211,7 @@ export async function startAdminApi(options: AdminApiOptions = {}): Promise<{ se
     db,
     port: boundPort,
     async close() {
+      clearInterval(limiterSweep);
       await app.close();
       await db.close();
     },

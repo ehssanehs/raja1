@@ -12,7 +12,7 @@
  *  - every mutation leaves an audit trail in proxy_events
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { PGliteClient, type DbClient } from '@raja/database';
+import { PGliteClient, runIntegrityChecks, type DbClient } from '@raja/database';
 import { MIGRATIONS } from '../../database/src/migrations';
 import { migrateUp } from '../../database/src/migrate';
 import { createKeyRing } from '@raja/crypto';
@@ -190,6 +190,36 @@ describe('proxy_events integrity', () => {
         expect(row.details).not.toContain('enc:v1');
       }
     }
+  });
+});
+
+describe('proxy pool integrity check', () => {
+  it('is coherent in normal operation (no lease on resting/dead proxies, settings in bounds)', async () => {
+    const { results, ok } = await runIntegrityChecks(db);
+    const check = results.find((result) => result.name === 'proxy_pool_consistency');
+    expect(check).toBeDefined();
+    expect(check!.severity).toBe('WARNING');
+    expect(check!.ok).toBe(true);
+    void ok;
+  });
+
+  it('flags a resting proxy that still holds a worker lease', async () => {
+    const view = await admin.create({ label: 'incoherent', protocol: 'HTTP', host: '10.6.0.1', port: 8080 }, ACTOR);
+    // Simulate drift: a manual UPDATE that quarantines without freeing the lease.
+    await db.query(
+      `UPDATE proxies SET status = 'QUARANTINED', quarantined_until = now() + interval '10 minutes',
+                          assigned_worker_id = 'stale-worker'
+        WHERE id = $1`,
+      [view.id],
+    );
+    const { results } = await runIntegrityChecks(db);
+    const check = results.find((result) => result.name === 'proxy_pool_consistency');
+    expect(check!.ok).toBe(false);
+    expect(check!.detail).toMatch(/still hold a worker lease/);
+    // Heal through the documented path: recordHealth frees the lease on quarantine.
+    await pool.recordHealth(view.id, { ok: false, source: 'TRAFFIC', httpStatus: 429, errorClass: 'RATE_LIMIT' });
+    const healed = await runIntegrityChecks(db);
+    expect(healed.results.find((result) => result.name === 'proxy_pool_consistency')!.ok).toBe(true);
   });
 });
 

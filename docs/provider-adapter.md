@@ -147,6 +147,11 @@ browser-heavy adapter cannot starve an API-based one.
 
 * **Pool**: N contexts per worker (configurable), each bound to one provider account and (optionally)
   a proxy; contexts are recycled after M navigations or on error.
+* **Egress binding**: the worker leases an egress proxy from the admin-managed pool
+  (`@raja/proxy`, docs/proxy-pool.md) and passes its id via `ProviderCallContext.egressProxyId`;
+  the adapter binds the whole call to that egress. A restriction observed on that egress (429,
+  block page, repeated CAPTCHA, 403/407) is reported through the pool, which quarantines the
+  proxy — the adapter never switches egress mid-flight to keep requesting.
 * **Isolation**: one browser context per account+job; no shared cookies; no persistent profile dir.
 * **Waiting**: `waitForSelector`/`waitForFunction`/`waitForLoadState`/network-idle *only*; no
   hardcoded sleeps except a documented, bounded settle delay for known animations.

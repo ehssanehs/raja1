@@ -126,6 +126,14 @@ export interface ProviderCallContext {
   tenantId: string;
   /** Session/account to use. Adapters never choose accounts themselves (the pool assigns). */
   accountId: string | null;
+  /**
+   * Egress proxy leased by the worker for this call (see @raja/proxy, docs/proxy-pool.md).
+   * When present, the adapter MUST bind its HTTP/browser transport to this proxy id for the
+   * whole call, and MUST NOT switch egress when the provider signals a restriction — the pool
+   * handles rest/recovery. When absent, use the platform's direct egress (or refuse in
+   * `egressMode=REQUIRED`; the worker enforces that before the call is made).
+   */
+  egressProxyId?: string | null;
   /** Hard deadline for the whole attempt (ms). */
   timeoutMs: number;
   /** Signals that the caller is a burst-validation/warm-up call (no booking allowed). */
