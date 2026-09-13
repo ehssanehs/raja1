@@ -5,6 +5,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getConfig, resetConfigCache } from '@raja/config';
 import { startAdminApi } from '../src/index';
+import { ProxyPool } from '@raja/proxy';
+import { createKeyRing } from '@raja/crypto';
 
 describe('admin proxy api', () => {
   let api: Awaited<ReturnType<typeof startAdminApi>>;
@@ -95,6 +97,27 @@ describe('admin proxy api', () => {
 
     // restore
     await fetch(`${base}/admin/proxy-settings`, { method: 'PUT', headers, body: JSON.stringify({ egressMode: 'REQUIRED', minHealthScore: 0 }) });
+  });
+
+  it('serves per-proxy health samples for trend charts (oldest first)', async () => {
+    const created = await fetch(`${base}/admin/proxies`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ label: 'trendy', protocol: 'HTTP', host: '10.9.1.1', port: 8080 }),
+    });
+    const view = (await created.json()) as { id: string };
+    // Record observations through the same database the API server opened.
+    const ring = createKeyRing(JSON.parse(process.env['MASTER_KEYS']!), 'k1');
+    const pool = new ProxyPool(api.db, ring, { egressMode: 'OPTIONAL' });
+    await pool.recordHealth(view.id, { ok: true, source: 'PROBE', latencyMs: 150, httpStatus: 204 });
+    await pool.recordHealth(view.id, { ok: false, source: 'TRAFFIC', httpStatus: 429, errorClass: 'RATE_LIMIT' });
+
+    const response = await fetch(`${base}/admin/proxies/${view.id}/samples?limit=10`, { headers });
+    expect(response.status).toBe(200);
+    const samples = (await response.json()) as { ok: boolean; latency_ms: number | null; created_at: string }[];
+    expect(samples).toHaveLength(2);
+    expect(new Date(samples[0]!.created_at).getTime()).toBeLessThanOrEqual(new Date(samples[1]!.created_at).getTime());
+    expect(samples[0]!.latency_ms).toBe(150);
   });
 
   it('returns the pool snapshot without secrets', async () => {

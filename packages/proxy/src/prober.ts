@@ -7,6 +7,7 @@
 import type { DbClient } from '@raja/database';
 import { ProxyPool } from './pool';
 import { ProxiedHttpClient } from './transport';
+import { PROXIES_DUE_FOR_PROBE_SQL } from './selector.sql';
 import type { ProxyRecord } from './types';
 
 export interface ProberOptions {
@@ -36,7 +37,7 @@ export class ProxyProber {
    * never been probed (fail-fast surface for typos/dead entries added by admins).
    */
   async probeDue(): Promise<{ proxyId: string; ok: boolean; note: string }[]> {
-    const rows = await this.db.query<ProxyRecord>('SELECT * FROM probes_due_view');
+    const rows = await this.db.query<ProxyRecord>(PROXIES_DUE_FOR_PROBE_SQL);
     return this.probeRows(rows);
   }
 

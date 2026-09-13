@@ -94,6 +94,20 @@ signals — the pool decides rest/recovery. Health endpoints: `GET /health/live`
 (20/min per source IP → 429). The nightly integrity suite includes
 `proxy_pool_consistency` (no lease on resting/dead proxies, settings in bounds).
 
+### 5.3 Health samples, trend charts and retention
+
+Every health observation (probe or real traffic) appends a row to `proxy_health_samples`:
+source, ok, latency, HTTP status, failure class, block-page/CAPTCHA flags, correlation id.
+Samples are **never editable** (a trigger refuses UPDATE) but the scheduler's maintenance loop
+prunes rows older than `RETENTION_DIAGNOSTICS_DAYS` (default 14) via `pruneHealthSamples` —
+the same lifecycle as diagnostics artifacts. `proxy_events` (the audit trail) is fully
+append-only and is never pruned.
+
+Admin API additions: `GET /admin/proxies/:id/samples?limit=120` returns recent samples
+oldest-first. The web console draws a per-proxy trend chart (`روند` button): a latency
+polyline for successful samples, red markers for failures and ⚑ flags for CAPTCHA/block-page
+observations.
+
 ## 6. Environment
 
 | Variable | Default | Meaning |

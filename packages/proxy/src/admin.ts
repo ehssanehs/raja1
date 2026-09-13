@@ -11,6 +11,7 @@ import { encryptString, type KeyRing } from '@raja/crypto';
 import { PROXY_SETTINGS_LIMITS, conflict, notFound, validationError } from '@raja/shared';
 import type { DbClient } from '@raja/database';
 import type { ProxyAdminActor, ProxyEventRecord, ProxyProxyView, ProxyRecord, ProxyUpsertInput } from './types';
+import type { ProxyHealthSampleView } from './retention';
 import type { ProxyEventType } from '@raja/shared';
 
 const HOST_RE = /^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$/;
@@ -145,6 +146,15 @@ export class ProxyAdminService {
       [proxyId, Math.min(limit, 200)],
     );
     return rows;
+  }
+
+  /** Recent health samples for one proxy, oldest-first (trend charts, retention-bounded). */
+  async samples(proxyId: string, limit = 120): Promise<ProxyHealthSampleView[]> {
+    const rows = await this.db.query<ProxyHealthSampleView>(
+      'SELECT * FROM proxy_health_samples WHERE proxy_id = $1 ORDER BY created_at DESC LIMIT $2',
+      [proxyId, Math.min(limit, 500)],
+    );
+    return rows.reverse();
   }
 
   // --------------------------------------------------------------- internals ---

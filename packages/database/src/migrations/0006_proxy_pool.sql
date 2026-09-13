@@ -65,6 +65,8 @@ CREATE TABLE IF NOT EXISTS proxy_health_samples (
   created_at      timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS proxy_health_samples_proxy_idx ON proxy_health_samples (proxy_id, created_at DESC);
+-- Retention: pruned by the scheduler maintenance loop (see pruneHealthSamples) using the same
+-- window as diagnostics artifacts (RETENTION_DIAGNOSTICS_DAYS, default 14).
 
 -- Lease hygiene: expire assignments whose worker died without releasing (defensive; the pool
 -- treats an assignment older than the max lease as free). Kept as data for the admin UI.
@@ -87,8 +89,10 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER proxy_events_append_only
   BEFORE UPDATE OR DELETE ON proxy_events
   FOR EACH ROW EXECUTE FUNCTION forbid_mutation_direct();
-CREATE TRIGGER proxy_health_samples_append_only
-  BEFORE UPDATE OR DELETE ON proxy_health_samples
+-- Health samples are never editable, but rows past their retention window may be deleted by the
+-- maintenance job (same lifecycle as diagnostics artifacts): append-mostly, bounded history.
+CREATE TRIGGER proxy_health_samples_no_update
+  BEFORE UPDATE ON proxy_health_samples
   FOR EACH ROW EXECUTE FUNCTION forbid_mutation_direct();
 
 -- Pool-wide settings live in system_settings under key 'proxy_pool' (egressMode, minHealthScore,

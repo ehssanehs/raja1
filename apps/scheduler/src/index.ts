@@ -13,7 +13,7 @@ import { getConfig } from '@raja/config';
 import { PgClient, PGliteClient, type DbClient } from '@raja/database';
 import { createKeyRing } from '@raja/crypto';
 import { loggerFor } from '@raja/logging';
-import { PROXIES_DUE_FOR_PROBE_SQL, ProxyPool, ProxyProber } from '@raja/proxy';
+import { PROXIES_DUE_FOR_PROBE_SQL, ProxyPool, ProxyProber, pruneHealthSamples } from '@raja/proxy';
 import type { ProxyRecord } from '@raja/proxy';
 
 const log = loggerFor('scheduler.proxy');
@@ -48,6 +48,13 @@ export async function runProxyMaintenance(db: DbClient): Promise<MaintenanceResu
     notifications.push('proxy_probe_failed');
   } finally {
     await prober.close().catch(() => undefined);
+  }
+
+  try {
+    const pruned = await pruneHealthSamples(db, config.retention.diagnosticsDays);
+    if (pruned > 0) log.info({ pruned }, 'proxy health samples pruned');
+  } catch (error) {
+    log.error({ err: (error as Error).message }, 'proxy sample pruning failed');
   }
 
   const snapshot = await pool.snapshot();

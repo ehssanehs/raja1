@@ -221,6 +221,23 @@ export class ProxyPool {
         decision.quarantine, // a resting proxy serves nobody: free its lease immediately
       ],
     );
+    // Append the evidence row first (append-mostly table; no updates ever, pruned by retention).
+    await this.db.query(
+      `INSERT INTO proxy_health_samples
+         (id, proxy_id, source, ok, latency_ms, http_status, error_class, block_page, captcha_seen, correlation_id)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        proxyId,
+        sample.source,
+        sample.ok,
+        sample.latencyMs ?? null,
+        sample.httpStatus ?? null,
+        sample.errorClass ?? null,
+        sample.blockPage === true,
+        sample.captchaSeen === true,
+        sample.correlationId ?? null,
+      ],
+    );
     if (decision.quarantine) {
       await this.insertEvent(proxyId, 'QUARANTINED', sample.source.toLowerCase(), decision.reason, { httpStatus: sample.httpStatus ?? null, errorClass: sample.errorClass ?? null });
     } else if (markDead) {

@@ -150,6 +150,13 @@ export async function startAdminApi(options: AdminApiOptions = {}): Promise<{ se
     return admin.events(id);
   });
 
+  app.get(`${base}/admin/proxies/:id/samples`, async (request) => {
+    const { id } = request.params as { id: string };
+    const query = request.query as { limit?: string };
+    const limit = query.limit ? Number(query.limit) : 120;
+    return admin.samples(id, Number.isFinite(limit) ? limit : 120);
+  });
+
   app.post(`${base}/admin/proxies`, async (request, reply) => {
     const input = createProxySchema.parse(request.body);
     const actor = { userId: actorOf(request.headers), source: 'web:admin' };

@@ -12,7 +12,7 @@
  *  - every mutation leaves an audit trail in proxy_events
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { PGliteClient, runIntegrityChecks, type DbClient } from '@raja/database';
+import { PGliteClient, isAppendOnlyViolation, runIntegrityChecks, type DbClient } from '@raja/database';
 import { MIGRATIONS } from '../../database/src/migrations';
 import { migrateUp } from '../../database/src/migrate';
 import { createKeyRing } from '@raja/crypto';
@@ -20,6 +20,7 @@ import { ProxyAdminService } from '../src/admin';
 import { ProxyPool } from '../src/pool';
 import { ProxyProber } from '../src/prober';
 import { ProxyUnavailableError } from '../src/errors';
+import { pruneHealthSamples } from '../src/retention';
 
 const ACTOR = { userId: '00000000-0000-4000-8000-0000000000d1', source: 'test:admin' };
 
@@ -190,6 +191,43 @@ describe('proxy_events integrity', () => {
         expect(row.details).not.toContain('enc:v1');
       }
     }
+  });
+});
+
+describe('health samples', () => {
+  it('appends an evidence row for every health observation', async () => {
+    const view = await admin.create({ label: 'sampled', protocol: 'HTTP', host: '10.8.0.1', port: 8080 }, ACTOR);
+    await pool.recordHealth(view.id, { ok: true, source: 'PROBE', latencyMs: 210, httpStatus: 204 });
+    await pool.recordHealth(view.id, { ok: false, source: 'TRAFFIC', httpStatus: 429, errorClass: 'RATE_LIMIT', captchaSeen: false, correlationId: 'cor-1' });
+    const samples = await admin.samples(view.id);
+    expect(samples).toHaveLength(2);
+    expect(samples[0]!.latency_ms).toBe(210);
+    expect(samples[1]!.ok).toBe(false);
+    expect(samples[1]!.http_status).toBe(429);
+    expect(samples[1]!.correlation_id).toBe('cor-1');
+
+    // Samples are never editable (append-mostly), but the retention prune can delete them.
+    let caught: unknown;
+    try {
+      await db.query('UPDATE proxy_health_samples SET ok = true WHERE proxy_id = $1', [view.id]);
+    } catch (error) { caught = error; }
+    expect(caught).toBeDefined();
+    expect(isAppendOnlyViolation(caught)).toBe(true);
+  });
+
+  it('prunes samples past the retention window and keeps fresh ones', async () => {
+    const view = await admin.create({ label: 'pruned', protocol: 'HTTP', host: '10.8.0.2', port: 8080 }, ACTOR);
+    await pool.recordHealth(view.id, { ok: true, source: 'PROBE', latencyMs: 100 });
+    await db.query(
+      `INSERT INTO proxy_health_samples (id, proxy_id, source, ok, latency_ms, created_at)
+       VALUES (gen_random_uuid(), $1, 'PROBE', true, 90, now() - interval '30 days')`,
+      [view.id],
+    );
+    const pruned = await pruneHealthSamples(db, 14);
+    expect(pruned).toBeGreaterThanOrEqual(1);
+    const remaining = await admin.samples(view.id);
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0]!.latency_ms).toBe(100);
   });
 });
 

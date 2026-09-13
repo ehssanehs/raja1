@@ -20,3 +20,4 @@ export * from './transport';
 export * from './prober';
 export * from './settings';
 export * from './selector.sql';
+export * from './retention';
