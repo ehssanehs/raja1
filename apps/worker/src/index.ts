@@ -87,3 +87,30 @@ export async function startWorker(): Promise<WorkerRuntime> {
   };
   return runtime;
 }
+
+// Executable bootstrap (container entrypoint). Queue consumers attach in the queue milestone;
+// today the runtime starts, holds its identity and drains its egress lease on shutdown.
+if (process.env['RAJA_BOOTSTRAP_WORKER'] === '1') {
+  startWorker()
+    .then((worker) => {
+      log.info({ workerId: worker.workerId, egressMode: getConfig().proxy.egressMode }, 'worker runtime started');
+      let stopping = false;
+      const stop = () => {
+        stopping = true;
+      };
+      process.on('SIGINT', stop);
+      process.on('SIGTERM', stop);
+      const heartbeat = setInterval(() => {
+        if (!stopping) return;
+        clearInterval(heartbeat);
+        void worker
+          .close()
+          .catch(() => undefined)
+          .then(() => process.exit(0));
+      }, 500);
+    })
+    .catch((error: unknown) => {
+      log.fatal({ err: (error as Error).message }, 'worker failed to start');
+      process.exit(1);
+    });
+}

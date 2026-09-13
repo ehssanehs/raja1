@@ -228,11 +228,27 @@ npm run test:integration # real-schema suites (migrations, pool, admin API, sche
 
 ## 6. Deployment
 
-> The platform ships as **plain Node processes + PostgreSQL + (optionally) Redis**. Container
-> definitions and compose files are tracked under milestone M13 in
-> [`docs/github-plan.md`](docs/github-plan.md); the following is the supported manual path today.
+The platform ships as **plain Node processes + PostgreSQL + (optionally) Redis**, either under
+Docker Compose (single host) or as bare processes behind any supervisor.
 
-### 6.1 What you need
+### 6.1 Docker Compose (single host, recommended)
+
+```bash
+cp .env.example .env                 # then set strong secrets (see §6.3)
+docker compose -f docker/docker-compose.yml up --build
+
+# console + API on http://localhost:3001/admin (set API_PORT to change the host port)
+# scale workers:      WORKER_REPLICAS=3 docker compose -f docker/docker-compose.yml up -d --scale worker=3
+# TLS reverse proxy:  RAJA_DOMAIN=raja.example.com docker compose -f docker/docker-compose.yml --profile tls up -d
+```
+
+Topology: `postgres:16` + `redis:7` + one container per process (`api`, `scheduler`, `worker`)
+from a single image (`docker/Dockerfile`, process selected by the `APP` env var). The api applies
+pending migrations on boot (checksum-verified, advisory-locked). Caddy (`--profile tls`)
+terminates TLS with automatic certificates and adds HSTS/nosniff/DENY headers. State lives in
+named volumes (`pgdata`, `redisdata`).
+
+### 6.2 What you need
 
 | Component | Required | Notes |
 | --- | --- | --- |
@@ -241,19 +257,19 @@ npm run test:integration # real-schema suites (migrations, pool, admin API, sche
 | Node.js 20.11+ | ✅ | One process per app, or any process manager (systemd, Docker, k8s). |
 | Outbound HTTPS | ✅ | Provider traffic; proxy probing (gstatic 204) and npm registry at install time. |
 
-### 6.2 Build
+### 6.3 Build
 
 ```bash
 npm ci
 npm run typecheck && npm test          # gate the build
-npm run build                          # tsc -b tsconfig.build.json → packages/*/dist, apps/*/dist
+npm run build                          # tsc -b (composite references) → packages/*/dist + apps/*/dist
+node apps/api/dist/index.js            # compiled entrypoints work as-is
 ```
 
-> **Known issue:** `npm run build` currently fails on `main` because referenced package
-> tsconfigs lack `composite: true` (pre-existing, tracked for M13). Run apps from source with
-> `tsx` today: `npx tsx apps/api/src/index.ts` works from the repo root with no build step.
+Run any process from `dist` (no tsx needed): the api finds its console asset through the repo
+layout, and the Docker image runs exactly these entrypoints.
 
-### 6.3 Production environment
+### 6.4 Production environment
 
 Start from `.env.example` and set **at least**:
 
@@ -277,7 +293,7 @@ EGRESS_MODE=OFF            # start OFF; flip to OPTIONAL/REQUIRED from the conso
 The process **refuses to start** and prints every problem if any of these are weak/missing —
 that is intentional (fail-closed config, TM-20).
 
-### 6.4 Database bootstrap
+### 6.5 Database bootstrap
 
 ```bash
 # apply pending migrations, then run the full integrity suite (audit chain, ledger,
@@ -294,21 +310,21 @@ advisory-locked (safe with multiple replicas booting at once), per-migration tra
 Never edit an applied migration; always add `NNNN_name.sql` and run
 `node scripts/embed-migrations.mjs`.
 
-### 6.5 Process topology
+### 6.6 Process topology
 
-| Process | Command | Health | Notes |
+| Process | Command (source) | Command (compiled) | Notes |
 | --- | --- | --- | --- |
-| api | `RAJA_BOOTSTRAP_ADMIN_API=1 npx tsx apps/api/src/index.ts` | `/health/ready` | Binds `0.0.0.0:$API_PORT`; put behind TLS (Caddy/Nginx). |
-| scheduler | `RAJA_BOOTSTRAP_SCHEDULER=1 npx tsx apps/scheduler/src/index.ts` | logs | Proxy probing + retention; keep exactly **one** instance per database (leases make it safe, but probing is redundant). |
-| worker (M+) | `startWorker()` entry | logs | Requires Redis; scales horizontally — each worker leases its own egress proxy. |
-| web | Next.js `build && start` | `/` | Talks to the API; same-origin or CORS `CORS_ORIGINS`. |
-| telegram-bot | (M+) | logs | Requires Redis + `TELEGRAM_BOT_TOKEN`. |
+| api | `RAJA_BOOTSTRAP_ADMIN_API=1 npx tsx apps/api/src/index.ts` | `APP=api node apps/api/dist/index.js` | Binds `0.0.0.0:$API_PORT`; put behind TLS (Caddy/Nginx). |
+| scheduler | `RAJA_BOOTSTRAP_SCHEDULER=1 npx tsx apps/scheduler/src/index.ts` | `APP=scheduler node …` | Proxy probing + retention; keep exactly **one** instance per database (leases make it safe, but probing is redundant). |
+| worker | `RAJA_BOOTSTRAP_WORKER=1 npx tsx apps/worker/src/index.ts` | `APP=worker node …` | Requires Redis when queue consumers run; scales horizontally — each worker leases its own egress proxy. |
+| web | Next.js `build && start` | — | Talks to the API; same-origin or CORS `CORS_ORIGINS`. |
+| telegram-bot | (M+) | — | Requires Redis + `TELEGRAM_BOT_TOKEN`. |
 
 Run behind a reverse proxy with TLS, HSTS and rate limiting (Caddy example lives with the M13
 milestone). The admin surface must not be reachable from the public internet without the
 bearer token; prefer network-level restriction (VPN/bastion) on top.
 
-### 6.6 Backups & recovery
+### 6.7 Backups & recovery
 
 ```bash
 # logical backup (the ledger and audit chain are the crown jewels)
@@ -324,7 +340,7 @@ proxy-pool coherence — a restored backup that fails verification must not be p
 Back up and keep `MASTER_KEYS` separately from database dumps: dumps contain ciphertext
 (`*_enc` columns) that is unrecoverable without the key ring.
 
-### 6.7 Zero-downtime notes
+### 6.8 Zero-downtime notes
 
 - Migrations are forward-only and additive: run `bootstrap` **before** swapping app processes.
 - The API holds no in-memory session state (JWT + DB sessions): run 2+ replicas freely.
@@ -541,10 +557,10 @@ Development is organised in milestones M0…M14 (see
 - **Shipped**: foundation packages (config/crypto/database/auth/RBAC/i18n), booking domain with
   state machine + guards, provider SDK with compliance gate, billing/ledger domain,
   **egress proxy pool end-to-end** (admin CRUD, leases, scheduled rotation, quarantine/rest,
-  probing, retention, web console, admin API, health endpoints), 337 passing tests.
+  probing, retention, web console, admin API, health endpoints), composite TypeScript build
+  (`npm run build`), Docker image + compose stack (`docker/`), 337 passing tests.
 - **Next (tracked)**: queue consumers (BullMQ) wiring the worker runtime, Next.js web app
-  pages, Telegram bot, NestJS migration of the API shell with JWT/RBAC guard, Dockerfiles +
-  compose (M13), and the `tsc` composite build fix noted in §6.2.
+  pages, Telegram bot, and the NestJS migration of the API shell with JWT/RBAC guard.
 
 ## 16. License
 
