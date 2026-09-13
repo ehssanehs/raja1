@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>کنسول ادمین — استخر پروکسی خروجی (Raja1)</title>
+<style>
+  :root {
+    --bg: #0f1420; --panel: #171e2e; --panel2: #1d2740; --line: #2a3654;
+    --text: #e7ecf7; --muted: #93a1bd; --accent: #4f8cff; --accent2: #2f6ae0;
+    --ok: #2fbf71; --warn: #e8a13c; --bad: #e05252; --dead: #8b93a5;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: Tahoma, "Segoe UI", Arial, sans-serif; font-size: 14px; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 17px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  main { padding: 16px 20px 60px; max-width: 1180px; margin: 0 auto; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 14px 0; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; text-align: center; }
+  .stat b { display: block; font-size: 22px; }
+  .stat span { color: var(--muted); font-size: 11px; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  th, td { padding: 9px 10px; text-align: right; border-bottom: 1px solid var(--line); font-size: 12.5px; vertical-align: middle; }
+  th { background: var(--panel2); color: var(--muted); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(79,140,255,.05); }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .pill.ACTIVE { background: rgba(47,191,113,.15); color: var(--ok); }
+  .pill.QUARANTINED { background: rgba(232,161,60,.15); color: var(--warn); }
+  .pill.DEAD { background: rgba(139,147,165,.15); color: var(--dead); }
+  .pill.off { background: rgba(224,82,82,.12); color: var(--bad); }
+  .health { direction: ltr; min-width: 70px; }
+  .health .bar { height: 6px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .health .bar i { display: block; height: 100%; background: var(--ok); }
+  .health small { color: var(--muted); }
+  button { background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: 6px 12px; font: inherit; font-size: 12px; cursor: pointer; }
+  button:hover { background: var(--accent2); }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+  button.ghost:hover { color: var(--text); border-color: var(--accent); }
+  button.danger { background: transparent; border: 1px solid rgba(224,82,82,.5); color: var(--bad); }
+  button.danger:hover { background: rgba(224,82,82,.12); }
+  input, select { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 7px; padding: 7px 9px; font: inherit; font-size: 12.5px; }
+  input:focus, select:focus { outline: 1px solid var(--accent); }
+  label { display: block; color: var(--muted); font-size: 11.5px; margin-bottom: 4px; }
+  .field { display: flex; flex-direction: column; }
+  form.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; }
+  summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+  h2 { font-size: 14px; margin: 18px 0 10px; }
+  .muted { color: var(--muted); }
+  .ltr { direction: ltr; text-align: left; }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; max-width: 640px; width: 92%; padding: 0; }
+  dialog::backdrop { background: rgba(0,0,0,.55); }
+  dialog .head { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+  dialog .body { padding: 12px 16px; max-height: 55vh; overflow: auto; }
+  .event { border-bottom: 1px dashed var(--line); padding: 7px 0; font-size: 12px; }
+  .event:last-child { border-bottom: none; }
+  .event b { color: var(--accent); }
+  #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--line); padding: 9px 18px; border-radius: 9px; display: none; font-size: 12.5px; }
+  .token-row { display: flex; gap: 8px; align-items: end; }
+  code { background: var(--panel2); padding: 1px 6px; border-radius: 5px; font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>استخر پروکسی خروجی</h1>
+    <div class="sub">مدیریت مسیر خروجی ترافیک ارائه‌دهنده — مسیریابی و احترام به سیگنال‌ها، هرگز دور زدن (ADR-0008)</div>
+  </div>
+  <div style="flex:1"></div>
+  <div class="token-row">
+    <div class="field">
+      <label for="token">توکن ادمین (ADMIN_API_TOKEN)</label>
+      <input id="token" type="password" placeholder="توکن را وارد کنید" style="min-width:220px" autocomplete="off">
+    </div>
+    <button id="saveToken">ذخیره</button>
+    <span id="modeBadge" class="pill off">—</span>
+  </div>
+</header>
+
+<main>
+  <div class="stats" id="stats">
+    <div class="stat"><b id="stAll">—</b><span>کل</span></div>
+    <div class="stat"><b id="stActive">—</b><span>فعال</span></div>
+    <div class="stat"><b id="stQuar">—</b><span>در استراحت</span></div>
+    <div class="stat"><b id="stDead">—</b><span>ازکارافتاده</span></div>
+    <div class="stat"><b id="stOff">—</b><span>غیرفعال</span></div>
+  </div>
+
+  <details id="addDetails">
+    <summary>+ افزودن پروکسی جدید</summary>
+    <form id="addForm" class="grid" style="margin-top:12px">
+      <div class="field"><label>برچسب *</label><input name="label" required maxlength="120" placeholder="مثلاً dc-tehran-1"></div>
+      <div class="field"><label>پروتکل *</label>
+        <select name="protocol"><option>HTTP</option><option>HTTPS</option><option>SOCKS5</option></select>
+      </div>
+      <div class="field"><label>هاست *</label><input name="host" required placeholder="1.2.3.4 یا proxy.example.com"></div>
+      <div class="field"><label>پورت *</label><input name="port" type="number" min="1" max="65535" required placeholder="8080"></div>
+      <div class="field"><label>نام کاربری</label><input name="username" autocomplete="off"></div>
+      <div class="field"><label>رمز عبور</label><input name="password" type="password" autocomplete="new-password"></div>
+      <div class="field"><label>ارائه‌دهنده (affinity)</label><input name="providerCode" placeholder="مثلاً raja — خالی برای همه"></div>
+      <div class="field"><label>منطقه</label><input name="region" placeholder="اختیاری"></div>
+      <div class="field"><label>بازه چرخش (ثانیه، ۳۰۰..۸۶۴۰۰)</label><input name="rotationSeconds" type="number" min="300" max="86400" placeholder="3600"></div>
+      <div class="field"><label>بودجه (درخواست در دقیقه، ۱..۶۰)</label><input name="requestsPerMinute" type="number" min="1" max="60" placeholder="10"></div>
+      <div class="field" style="justify-content:end"><button type="submit">افزودن</button></div>
+    </form>
+  </details>
+
+  <h2>تنظیمات استخر</h2>
+  <form id="settingsForm" class="grid card" style="border-radius:10px">
+    <div class="field"><label>حالت خروج (EGRESS_MODE)</label>
+      <select name="egressMode">
+        <option value="OFF">OFF — استخر غیرفعال (مسیر مستقیم)</option>
+        <option value="OPTIONAL">OPTIONAL — از پروکسی در دسترس استفاده کن</option>
+        <option value="REQUIRED">REQUIRED — بدون پروکسی سالم، ترافیک ارائه‌دهنده ممنوع</option>
+      </select>
+    </div>
+    <div class="field"><label>حداقل امتیاز سلامت (۰..۱۰۰)</label><input name="minHealthScore" type="number" min="0" max="100"></div>
+    <div class="field"><label>بازه پروب (ثانیه، ۶۰..۳۶۰۰)</label><input name="probeIntervalSeconds" type="number" min="60" max="3600"></div>
+    <div class="field"><label>اجازه مسیر مستقیم در OPTIONAL</label>
+      <select name="allowDirectFallback"><option value="true">بله</option><option value="false">خیر</option></select>
+    </div>
+    <div class="field" style="justify-content:end"><button type="submit">ذخیره تنظیمات</button></div>
+  </form>
+
+  <h2>پروکسی‌ها <span class="muted" id="listNote"></span></h2>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>برچسب</th><th>آدرس</th><th>وضعیت</th><th>سلامت</th><th>موفق/خطا</th>
+        <th>استراحت تا</th><th>چرخش</th><th>بودجه</th><th>ورکر</th><th>عملیات</th>
+      </tr></thead>
+      <tbody id="proxyRows"><tr><td colspan="10" class="muted">برای مشاهده، توکن ادمین را وارد کنید.</td></tr></tbody>
+    </table>
+  </div>
+
+  <p class="muted" style="margin-top:14px; font-size:12px">
+    یادآوری: پروکسیِ در حال استراحت (QUARANTINED) هیچ اجاره‌ای نمی‌گیرد و ترافیک به IP دیگری منتقل **نمی‌شود**؛
+    بازیابی فقط با پروب موفق پس از پایان پنجرهٔ استراحت انجام می‌شود. کپچا همیشه به جریان انسانی ارجاع می‌شود.
+  </p>
+</main>
+
+<dialog id="eventsDialog">
+  <div class="head"><b id="eventsTitle">رویدادها</b><button class="ghost" onclick="document.getElementById('eventsDialog').close()">بستن</button></div>
+  <div class="body" id="eventsBody"></div>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  let token = '';
+  try { token = localStorage.getItem('raja_admin_token') || ''; } catch { /* iframe storage blocked */ }
+  $('token').value = token;
+
+  function toast(msg, ok = true) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.style.borderColor = ok ? 'var(--ok)' : 'var(--bad)';
+    t.style.display = 'block';
+    clearTimeout(t._h);
+    t._h = setTimeout(() => { t.style.display = 'none'; }, 3200);
+  }
+
+  async function api(path, options = {}) {
+    const headers = { 'content-type': 'application/json', ...(options.headers || {}) };
+    if (token) headers['authorization'] = `Bearer ${token}`;
+    const response = await fetch(path, { ...options, headers });
+    if (response.status === 401) throw new Error('دسترسی رد شد — توکن ادمین را بررسی کنید');
+    let body = null;
+    try { body = await response.json(); } catch { /* empty body ok */ }
+    if (!response.ok) {
+      const key = body && body.error ? body.error.code : response.status;
+      throw new Error(`خطای ${key}`);
+    }
+    return body;
+  }
+
+  function fmtTime(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    const diff = d.getTime() - Date.now();
+    const mins = Math.round(Math.abs(diff) / 60000);
+    const rel = diff > 0 ? `(${mins} دقیقه دیگر)` : diff < 0 ? `(${mins} دقیقه پیش)` : '';
+    return `${d.toLocaleString('fa-IR')} ${rel}`;
+  }
+
+  function healthCell(score) {
+    const color = score >= 70 ? 'var(--ok)' : score >= 40 ? 'var(--warn)' : 'var(--bad)';
+    return `<div class="health"><div class="bar"><i style="width:${score}%;background:${color}"></i></div><small>${score}</small></div>`;
+  }
+
+  function renderRow(p) {
+    const resting = p.status === 'QUARANTINED' || (p.quarantinedUntil && new Date(p.quarantinedUntil) > new Date());
+    const statusPill = p.enabled
+      ? `<span class="pill ${p.status}">${p.status === 'ACTIVE' ? 'فعال' : p.status === 'QUARANTINED' ? 'استراحت' : 'ازکارافتاده'}</span>`
+      : `<span class="pill off">غیرفعال</span>`;
+    const rotateMin = Math.round(p.rotationSeconds / 60);
+    const actions = [];
+    actions.push(`<button class="ghost" data-act="events" data-id="${p.id}">رویدادها</button>`);
+    if (p.enabled) actions.push(`<button class="ghost" data-act="disable" data-id="${p.id}">غیرفعال</button>`);
+    else actions.push(`<button data-act="enable" data-id="${p.id}">فعال‌سازی</button>`);
+    actions.push(`<button class="danger" data-act="remove" data-id="${p.id}">حذف</button>`);
+    return `<tr>
+      <td><b>${escapeHtml(p.label)}</b>${p.region ? `<div class="muted" style="font-size:11px">${escapeHtml(p.region)}</div>` : ''}${p.providerCode ? `<div class="muted" style="font-size:11px">ارائه‌دهنده: ${escapeHtml(p.providerCode)}</div>` : ''}</td>
+      <td class="ltr"><code>${escapeHtml(p.endpoint)}</code>${p.hasCredentials ? ' <span title="دارای احراز هویت">🔑</span>' : ''}</td>
+      <td>${statusPill}${resting && p.status !== 'QUARANTINED' ? ' <span class="pill QUARANTINED">استراحت</span>' : ''}</td>
+      <td>${healthCell(p.healthScore)}${p.latencyMs != null ? `<small class="muted ltr">${p.latencyMs}ms</small>` : ''}</td>
+      <td class="ltr">${p.successCount} / <span style="color:var(--bad)">${p.failureCount}</span></td>
+      <td>${resting ? fmtTime(p.quarantinedUntil) : '—'}</td>
+      <td>${rotateMin} دقیقه<br><small class="muted">${p.requestsPerMinute}/دقیقه${p.rateBudgetMultiplierPct < 100 ? ` ×${p.rateBudgetMultiplierPct}%` : ''}</small></td>
+      <td class="ltr">${p.assignedWorkerId ? `<small>${escapeHtml(p.assignedWorkerId.slice(0, 18))}</small>` : '—'}</td>
+      <td style="white-space:nowrap">${actions.join(' ')}</td>
+    </tr>`;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  async function refresh() {
+    if (!token) return;
+    try {
+      const [snapshot, settings] = await Promise.all([api('/api/v1/admin/proxies/pool'), api('/api/v1/admin/proxy-settings')]);
+      $('stAll').textContent = snapshot.totals.all;
+      $('stActive').textContent = snapshot.totals.active;
+      $('stQuar').textContent = snapshot.totals.quarantined;
+      $('stDead').textContent = snapshot.totals.dead;
+      $('stOff').textContent = snapshot.totals.disabled;
+      const badge = $('modeBadge');
+      badge.textContent = settings.egressMode;
+      badge.className = `pill ${settings.egressMode === 'ACTIVE' ? 'ACTIVE' : settings.egressMode === 'OFF' ? 'off' : 'QUARANTINED'}`;
+      badge.textContent = `EGRESS: ${settings.egressMode}`;
+      const form = $('settingsForm');
+      form.egressMode.value = settings.egressMode;
+      form.minHealthScore.value = settings.minHealthScore;
+      form.probeIntervalSeconds.value = settings.probeIntervalSeconds;
+      form.allowDirectFallback.value = String(settings.allowDirectFallback);
+      $('proxyRows').innerHTML = snapshot.proxies.length
+        ? snapshot.proxies.map(renderRow).join('')
+        : '<tr><td colspan="10" class="muted">هنوز پروکسی‌ای ثبت نشده — از فرم بالا اضافه کنید.</td></tr>';
+      $('listNote').textContent = snapshot.proxies.length ? `(${snapshot.proxies.length} مورد)` : '';
+    } catch (error) {
+      toast(error.message, false);
+    }
+  }
+
+  $('saveToken').addEventListener('click', () => {
+    token = $('token').value.trim();
+    try { localStorage.setItem('raja_admin_token', token); } catch { /* memory only */ }
+    refresh();
+  });
+
+  $('addForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const payload = {};
+    for (const field of new FormData(form)) {
+      const [key, value] = field;
+      if (String(value).trim() !== '') payload[key] = ['port', 'rotationSeconds', 'requestsPerMinute'].includes(key) ? Number(value) : value;
+    }
+    try {
+      await api('/api/v1/admin/proxies', { method: 'POST', body: JSON.stringify(payload) });
+      toast('پروکسی اضافه شد');
+      form.reset();
+      refresh();
+    } catch (error) { toast(error.message, false); }
+  });
+
+  $('settingsForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const payload = {
+      egressMode: form.egressMode.value,
+      minHealthScore: Number(form.minHealthScore.value || 0),
+      probeIntervalSeconds: Number(form.probeIntervalSeconds.value || 300),
+      allowDirectFallback: form.allowDirectFallback.value === 'true',
+    };
+    try {
+      await api('/api/v1/admin/proxy-settings', { method: 'PUT', body: JSON.stringify(payload) });
+      toast('تنظیمات ذخیره شد');
+      refresh();
+    } catch (error) { toast(error.message, false); }
+  });
+
+  $('proxyRows').addEventListener('click', async (event) => {
+    const button = event.target.closest('button[data-act]');
+    if (!button) return;
+    const id = button.dataset.id;
+    const act = button.dataset.act;
+    try {
+      if (act === 'enable') { await api(`/api/v1/admin/proxies/${id}/enable`, { method: 'POST' }); toast('فعال شد'); }
+      else if (act === 'disable') { await api(`/api/v1/admin/proxies/${id}/disable`, { method: 'POST' }); toast('غیرفعال شد'); }
+      else if (act === 'remove') {
+        if (!confirm('این پروکسی حذف شود؟ رویدادهای audit باقی می‌مانند.')) return;
+        await api(`/api/v1/admin/proxies/${id}`, { method: 'DELETE' }); toast('حذف شد');
+      } else if (act === 'events') {
+        const events = await api(`/api/v1/admin/proxies/${id}/events`);
+        $('eventsTitle').textContent = `رویدادها (${events.length})`;
+        $('eventsBody').innerHTML = events.map((e) =>
+          `<div class="event"><b>${escapeHtml(e.event_type)}</b> <span class="muted">[${escapeHtml(e.source)}]</span> ${escapeHtml(e.reason)}<div class="muted" style="font-size:11px">${fmtTime(e.created_at)}</div></div>`
+        ).join('') || '<div class="muted">رویدادی نیست.</div>';
+        $('eventsDialog').showModal();
+        return;
+      }
+      refresh();
+    } catch (error) { toast(error.message, false); }
+  });
+
+  setInterval(refresh, 10_000);
+  if (token) refresh();
+})();
+</script>
+</body>
+</html>

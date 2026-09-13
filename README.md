@@ -136,6 +136,7 @@ npm test               # 900+ unit + integration tests, no network, no provider 
 | --- | --- |
 | Web app | http://localhost:3000 |
 | API (OpenAPI) | http://localhost:3001/api/docs |
+| **Proxy admin console** | http://localhost:3001/admin |
 | Metrics | http://localhost:3001/metrics |
 | Health | http://localhost:3001/health/ready |
 | Provider simulator | http://localhost:4010 |

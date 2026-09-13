@@ -75,6 +75,15 @@ restores the budget gradually; failing probes keep the proxy resting.
 RBAC: full integration with the platform permission `proxy:manage` (roles OPERATOR+) lands with
 the API milestone's JWT guard; today the surface is guarded by the admin bearer token.
 
+### 5.1 Web console
+
+`GET /admin` (on the API server, outside the guarded API base path) serves a static Persian/RTL
+admin console — pool summary cards, the proxy table (status, health, counters, rest windows,
+assignments) with enable/disable/remove actions, an add-proxy form, pool settings editor and a
+per-proxy event (audit) viewer. The page embeds no data and no token: it prompts for
+`ADMIN_API_TOKEN`, stores it client-side and calls the guarded endpoints with relative URLs.
+Auto-refreshes every 10 s.
+
 ## 6. Environment
 
 | Variable | Default | Meaning |
