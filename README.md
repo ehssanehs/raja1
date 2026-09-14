@@ -5,6 +5,7 @@
 > reservation workflows. Users interact through a **Telegram bot** or the **responsive web app**;
 > operators manage the platform through an admin API and the **proxy admin console**.
 
+[![CI](https://github.com/ehssanehs/raja1/actions/workflows/ci.yml/badge.svg)](https://github.com/ehssanehs/raja1/actions/workflows/ci.yml)
 ![Node](https://img.shields.io/badge/node-%3E%3D20.11-339933)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
 ![Tests](https://img.shields.io/badge/tests-337%20passing-2fbf71)
@@ -180,6 +181,9 @@ npm test
 
 # 6. start the admin API + proxy console
 RAJA_BOOTSTRAP_ADMIN_API=1 npx tsx apps/api/src/index.ts
+
+# …or explore the console with a seeded FICTIONAL pool (in-memory, nothing persisted):
+npm run demo:console
 ```
 
 | Service | URL |
@@ -432,6 +436,10 @@ are rate-limited (20/min/IP → `429`).
 proxy table with status pills and health bars, add/update/enable/disable/remove, pool settings
 editor, per-proxy audit viewer and SVG trend charts. The page embeds no data and no token — it
 prompts for `ADMIN_API_TOKEN` and calls the guarded endpoints with relative URLs.
+
+To explore the UI without touching a real pool, `npm run demo:console` boots the console against
+an in-memory database seeded with a fictional pool (healthy / quarantined / dead proxies, a
+12-hour sample history with 429s and a CAPTCHA flag, and a matching audit story).
 
 ```bash
 curl -s http://localhost:3001/api/v1/admin/proxies/pool \

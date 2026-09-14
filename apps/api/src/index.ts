@@ -49,16 +49,22 @@ export interface AdminApiOptions {
   adminToken?: string;
   port?: number;
   host?: string;
+  /**
+   * Pre-opened database (demo script, tests). The caller owns migrations and closing;
+   * when omitted the API opens its own connection and bootstraps migrations on start.
+   */
+  db?: DbClient;
 }
 
 export async function startAdminApi(options: AdminApiOptions = {}): Promise<{ server: ReturnType<typeof Fastify>; db: DbClient; port: number; close(): Promise<void> }> {
   const config = getConfig();
   const adminToken = options.adminToken ?? process.env['ADMIN_API_TOKEN'] ?? 'dev-admin-token-change-me';
 
-  const db = config.db.url
-    ? await PgClient.create({ connectionString: config.db.url, ssl: config.db.ssl, max: config.db.poolMax })
-    : await PGliteClient.create();
-  await migrateUp(db, { appliedBy: 'api-bootstrap' });
+  const db = options.db
+    ?? (config.db.url
+      ? await PgClient.create({ connectionString: config.db.url, ssl: config.db.ssl, max: config.db.poolMax })
+      : await PGliteClient.create());
+  if (!options.db) await migrateUp(db, { appliedBy: 'api-bootstrap' });
 
   const ring = createKeyRing(config.crypto.masterKeys, config.crypto.activeKeyId);
   const admin = new ProxyAdminService(db, ring);
