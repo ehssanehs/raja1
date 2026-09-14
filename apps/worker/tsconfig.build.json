@@ -2,7 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "composite": true,
+    "declaration": true,
+    "incremental": true
   },
   "include": [
     "src/**/*.ts"
@@ -46,6 +49,9 @@
     },
     {
       "path": "../../packages/booking/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/proxy/tsconfig.build.json"
     }
   ]
 }

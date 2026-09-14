@@ -159,6 +159,14 @@ export const en = {
   'notify.maintenance_notice.body': '{message}',
   'notify.support_reply.title': 'Support reply',
   'notify.support_reply.body': 'New reply on ticket {ticket}: {preview}',
+  'notify.proxy_added.title': 'Proxy added',
+  'notify.proxy_added.body': 'Egress proxy {label} was added to the pool.',
+  'notify.proxy_removed.title': 'Proxy removed',
+  'notify.proxy_removed.body': 'Egress proxy {label} was removed from the pool.',
+  'notify.proxy_pool_degraded.title': 'Proxy pool degraded',
+  'notify.proxy_pool_degraded.body': 'Most egress proxies are resting or dead ({active} of {total} usable).',
+  'notify.proxy_pool_exhausted.title': 'Proxy pool exhausted',
+  'notify.proxy_pool_exhausted.body': 'No usable egress proxy remains ({total} resting or dead). Provider traffic is paused.',
 
   // ---------------------------------------------------------------- web
   'web.nav.dashboard': 'Dashboard',
@@ -356,6 +364,14 @@ export const fa: Record<MessageKey, string> = {
   'notify.maintenance_notice.body': '{message}',
   'notify.support_reply.title': 'پاسخ پشتیبانی',
   'notify.support_reply.body': 'پاسخ جدید در تیکت {ticket}: {preview}',
+  'notify.proxy_added.title': 'افزودن پروکسی',
+  'notify.proxy_added.body': 'پروکسی خروجی {label} به استخر اضافه شد.',
+  'notify.proxy_removed.title': 'حذف پروکسی',
+  'notify.proxy_removed.body': 'پروکسی خروجی {label} از استخر حذف شد.',
+  'notify.proxy_pool_degraded.title': 'استخر پروکسی در آستانه تخلیه',
+  'notify.proxy_pool_degraded.body': 'بیشتر پروکسی‌های خروجی در استراحت یا ازکارافتاده‌اند ({active} از {total} قابل استفاده).',
+  'notify.proxy_pool_exhausted.title': 'اتمام استخر پروکسی',
+  'notify.proxy_pool_exhausted.body': 'هیچ پروکسی خروجی قابل استفاده‌ای باقی نمانده ({total} در استراحت یا ازکارافتاده). ترافیک ارائه‌دهنده متوقف است.',
 
   // ---------------------------------------------------------------- web
   'web.nav.dashboard': 'داشبورد',

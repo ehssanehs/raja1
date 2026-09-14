@@ -9,7 +9,7 @@
  *  - `describe()` returns a loggable summary with every secret redacted
  */
 import { z } from 'zod';
-import { LOCALES, MAINTENANCE_MODES } from '@raja/shared';
+import { EGRESS_MODES, LOCALES, MAINTENANCE_MODES } from '@raja/shared';
 
 const booleanish = z
   .union([z.boolean(), z.enum(['true', 'false', '1', '0', 'yes', 'no'])])
@@ -80,6 +80,12 @@ export const envSchema = z.object({
   CIRCUIT_BREAKER_FAILURE_RATIO: z.coerce.number().min(0.05).max(0.95).default(0.4),
   CIRCUIT_BREAKER_MIN_SAMPLES: z.coerce.number().int().min(5).default(20),
 
+  // ---- egress proxy pool (docs/proxy-pool.md; fail-closed: OFF by default) ----
+  EGRESS_MODE: z.enum(EGRESS_MODES).default('OFF'),
+  PROXY_MIN_HEALTH_SCORE: z.coerce.number().int().min(0).max(100).default(0),
+  PROXY_PROBE_INTERVAL_SECONDS: z.coerce.number().int().min(60).max(3600).default(300),
+  PROXY_LEASE_SECONDS: z.coerce.number().int().min(30).max(1800).default(600),
+
   // ---- mail / sms (optional) ----
   SMTP_URL: z.string().default(''),
   SMS_API_KEY: z.string().default(''),
@@ -143,6 +149,12 @@ export interface AppConfig {
   };
   readonly scheduler: { tickMs: number; leaseSeconds: number };
   readonly worker: { concurrency: number; browserPoolSize: number };
+  readonly proxy: {
+    egressMode: (typeof EGRESS_MODES)[number];
+    minHealthScore: number;
+    probeIntervalSeconds: number;
+    leaseSeconds: number;
+  };
   readonly retention: { auditDays: number; diagnosticsDays: number; searchJobsDays: number };
   readonly integrations: { smtpUrl: string; smsApiKey: string; supportEmail: string };
   readonly metricsEnabled: boolean;
@@ -274,6 +286,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     }),
     scheduler: Object.freeze({ tickMs: raw.SCHEDULER_TICK_MS, leaseSeconds: raw.SCHEDULER_LEASE_SECONDS }),
     worker: Object.freeze({ concurrency: raw.WORKER_CONCURRENCY, browserPoolSize: raw.BROWSER_POOL_SIZE }),
+    proxy: Object.freeze({
+      egressMode: raw.EGRESS_MODE,
+      minHealthScore: raw.PROXY_MIN_HEALTH_SCORE,
+      probeIntervalSeconds: raw.PROXY_PROBE_INTERVAL_SECONDS,
+      leaseSeconds: raw.PROXY_LEASE_SECONDS,
+    }),
     retention: Object.freeze({
       auditDays: raw.RETENTION_AUDIT_DAYS,
       diagnosticsDays: raw.RETENTION_DIAGNOSTICS_DAYS,
@@ -338,6 +356,7 @@ export function describeConfig(config: AppConfig): Record<string, unknown> {
     provider: config.provider,
     scheduler: config.scheduler,
     worker: config.worker,
+    proxy: config.proxy,
     metricsEnabled: config.metricsEnabled,
     maintenanceMode: config.maintenanceMode,
   };

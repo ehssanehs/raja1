@@ -41,7 +41,8 @@
     "@raja/queue": "*",
     "@raja/billing": "*",
     "@raja/notifications": "*",
-    "@raja/booking": "*"
+    "@raja/booking": "*",
+    "@raja/proxy": "*"
   },
   "devDependencies": {
     "@nestjs/testing": "^12.0.1",

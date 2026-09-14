@@ -1,0 +1,106 @@
+name: raja1
+
+# ---------------------------------------------------------------------------
+# Development / single-host deployment stack.
+#   docker compose -f docker/docker-compose.yml up --build
+#
+# The api process applies pending migrations on boot (checksum-verified,
+# advisory-locked), so no separate migrate container is needed. Provide
+# secrets through ../.env (see .env.example); never bake them into images.
+# ---------------------------------------------------------------------------
+
+x-app: &app
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+  env_file:
+    - ../.env
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+x-db-url: &db-url postgres://raja:${POSTGRES_PASSWORD:-raja-dev-password}@postgres:5432/raja1
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: raja
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-raja-dev-password}
+      POSTGRES_DB: raja1
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U raja -d raja1']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    <<: *app
+    environment:
+      APP: api
+      DATABASE_URL: *db-url
+      REDIS_URL: redis://redis:6379
+      API_PORT: '3001'
+    ports:
+      - '${API_PORT:-3001}:3001'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O - http://127.0.0.1:3001/health/ready >/dev/null 2>&1 || exit 1']
+      interval: 10s
+      timeout: 4s
+      retries: 12
+      start_period: 20s
+
+  scheduler:
+    <<: *app
+    environment:
+      APP: scheduler
+      DATABASE_URL: *db-url
+      REDIS_URL: redis://redis:6379
+
+  worker:
+    <<: *app
+    environment:
+      APP: worker
+      DATABASE_URL: *db-url
+      REDIS_URL: redis://redis:6379
+    deploy:
+      replicas: ${WORKER_REPLICAS:-1}
+
+  # Optional TLS termination (docker compose --profile tls up). Set RAJA_DOMAIN.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ['tls']
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      RAJA_DOMAIN: ${RAJA_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  redisdata:
+  caddydata:
+  caddyconfig:

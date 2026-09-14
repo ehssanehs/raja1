@@ -1,0 +1,23 @@
+# Caddy reverse proxy for Raja1 (TLS automatic via Let's Encrypt when RAJA_DOMAIN
+# is a public hostname; plain HTTP for localhost). Security headers + HTTP->HTTPS
+# are handled by Caddy defaults.
+
+{$RAJA_DOMAIN} {
+	encode zstd gzip
+
+	# Never log authorization/cookie headers.
+	log {
+		output stdout
+		format console
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	reverse_proxy api:3001
+}

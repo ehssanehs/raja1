@@ -36,6 +36,9 @@
       "@raja/queue": [
         "packages/queue/src/index.ts"
       ],
+      "@raja/proxy": [
+        "packages/proxy/src/index.ts"
+      ],
       "@raja/shared": [
         "packages/shared/src/index.ts"
       ],

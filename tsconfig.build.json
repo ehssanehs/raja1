@@ -32,6 +32,9 @@
       "path": "packages/queue/tsconfig.build.json"
     },
     {
+      "path": "packages/proxy/tsconfig.build.json"
+    },
+    {
       "path": "packages/shared/tsconfig.build.json"
     },
     {

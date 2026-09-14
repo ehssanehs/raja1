@@ -30,7 +30,8 @@
     "docker:dev": "docker compose -f docker/docker-compose.yml up --build",
     "docker:prod": "docker compose -f docker/docker-compose.production.yml up --build -d",
     "build:watch": "tsc -b tsconfig.build.json --watch",
-    "clean": "node -e \"require('fs').rmSync('node_modules/.cache',{recursive:true,force:true})\""
+    "clean": "node -e \"require('fs').rmSync('node_modules/.cache',{recursive:true,force:true})\"",
+    "demo:console": "tsx scripts/demo-console.ts"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
